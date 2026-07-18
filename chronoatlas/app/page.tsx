@@ -34,7 +34,7 @@ export default function Home() {
       info ?? {
         name,
         summary:
-          "A detailed record for this territory hasn't been curated yet — try one of the highlighted civilizations for the full story.",
+          "This territory appears in the border data, but a full dossier hasn't been written yet. Try Rome, the Mongol Empire, the Ottomans, or search for a civilization above.",
       }
     );
   }, []);

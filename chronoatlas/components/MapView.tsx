@@ -112,17 +112,32 @@ export default function MapView({
         },
       });
 
-      map.on("mouseenter", "territories-fill", () => {
-        map.getCanvas().style.cursor = "pointer";
+      const namedAt = (point: maplibregl.PointLike) => {
+        const hits = map.queryRenderedFeatures(point, {
+          layers: ["territories-fill"],
+        });
+        // Most polygons in the dataset have NAME: null (seas, anonymous
+        // regions). Prefer the topmost hit that actually has a name so
+        // unnamed overlays don't swallow clicks on real empires.
+        return hits.find((f) => {
+          const n = f.properties?.NAME;
+          return typeof n === "string" && n.length > 0;
+        });
+      };
+
+      map.on("mousemove", "territories-fill", (e) => {
+        map.getCanvas().style.cursor = namedAt(e.point) ? "pointer" : "";
       });
       map.on("mouseleave", "territories-fill", () => {
         map.getCanvas().style.cursor = "";
       });
 
       map.on("click", "territories-fill", (e) => {
-        const feat = e.features?.[0];
+        const feat = namedAt(e.point);
         const name = feat?.properties?.NAME;
-        if (name) onSelectEmpire(name);
+        if (typeof name === "string" && name.length > 0) {
+          onSelectEmpire(name);
+        }
       });
 
       setReady(true);
