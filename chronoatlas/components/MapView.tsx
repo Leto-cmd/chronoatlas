@@ -18,6 +18,8 @@ interface MapViewProps {
   registerFlyTo: (fn: (lng: number, lat: number, zoom: number) => void) => void;
 }
 
+// MapLibre only expands {z}/{x}/{y} — Leaflet's {r}/{s} tokens break tile
+// loading and leave a blank canvas that blends into the dark page background.
 const STYLE: maplibregl.StyleSpecification = {
   version: 8,
   glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
@@ -25,10 +27,10 @@ const STYLE: maplibregl.StyleSpecification = {
     "carto-dark": {
       type: "raster",
       tiles: [
-        "https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
-        "https://b.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
-        "https://c.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
-        "https://d.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
+        "https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png",
+        "https://d.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png",
       ],
       tileSize: 256,
       attribution: "© OpenStreetMap contributors © CARTO",
@@ -41,11 +43,11 @@ const STYLE: maplibregl.StyleSpecification = {
       type: "raster",
       source: "carto-dark",
       paint: {
-        "raster-opacity": 0.5,
+        "raster-opacity": 0.55,
         "raster-brightness-min": 0,
-        "raster-brightness-max": 0.32,
-        "raster-saturation": -0.4,
-        "raster-contrast": 0.1,
+        "raster-brightness-max": 0.35,
+        "raster-saturation": -0.35,
+        "raster-contrast": 0.12,
       },
     },
   ],
@@ -84,6 +86,7 @@ export default function MapView({
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
 
     map.on("load", () => {
+      map.resize();
       map.addSource("territories", { type: "geojson", data: EMPTY_FC });
 
       map.addLayer({
@@ -125,6 +128,11 @@ export default function MapView({
       setReady(true);
     });
 
+    // Catch late layout (flex/absolute) so the WebGL canvas isn't 0×0.
+    const onWinResize = () => map.resize();
+    window.addEventListener("resize", onWinResize);
+    requestAnimationFrame(() => map.resize());
+
     registerFlyTo((lng, lat, zoom) => {
       mapRef.current?.flyTo({
         center: [lng, lat] as LngLatLike,
@@ -136,6 +144,7 @@ export default function MapView({
     });
 
     return () => {
+      window.removeEventListener("resize", onWinResize);
       map.remove();
       mapRef.current = null;
     };
@@ -152,15 +161,23 @@ export default function MapView({
     let data = cacheRef.current.get(keyframe);
     if (!data) {
       setLoadingBorders(true);
-      const res = await fetch(yearToFilename(keyframe));
-      data = await res.json();
-      // Inject deterministic per-territory color so the fill-color expression
-      // can just read a plain property.
-      for (const f of data!.features) {
-        const name = f.properties?.NAME ?? null;
-        f.properties = { ...f.properties, fillColor: colorForName(name) };
+      try {
+        const res = await fetch(yearToFilename(keyframe));
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        data = await res.json();
+        // Inject deterministic per-territory color so the fill-color expression
+        // can just read a plain property.
+        for (const f of data!.features) {
+          const name = f.properties?.NAME ?? null;
+          f.properties = { ...f.properties, fillColor: colorForName(name) };
+        }
+        cacheRef.current.set(keyframe, data!);
+      } catch (err) {
+        console.error(`Failed to load borders for ${keyframe}:`, err);
+        currentKeyframeRef.current = null;
+        setLoadingBorders(false);
+        return;
       }
-      cacheRef.current.set(keyframe, data!);
       setLoadingBorders(false);
     }
 
@@ -222,8 +239,8 @@ export default function MapView({
   }, [ready, onSelectEvent]);
 
   return (
-    <div className="absolute inset-0">
-      <div ref={containerRef} className="absolute inset-0" />
+    <div className="absolute inset-0 w-full h-full">
+      <div ref={containerRef} className="absolute inset-0 w-full h-full" />
       {loadingBorders && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-3 py-1.5 rounded-full bg-panel border border-border text-xs text-text-muted font-mono">
           Drawing borders…
