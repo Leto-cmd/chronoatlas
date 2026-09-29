@@ -149,26 +149,30 @@ export default function MapView({
       });
 
       const namedAt = (point: maplibregl.PointLike) => {
-        const hits = map.queryRenderedFeatures(point, {
-          layers: ["territories-fill"],
-        });
-        // Most polygons in the dataset have NAME: null (seas, anonymous
-        // regions). Prefer the topmost hit that actually has a name so
-        // unnamed overlays don't swallow clicks on real polities.
-        return hits.find((f) => {
-          const n = (f.properties as Record<string, unknown> | null | undefined)?.NAME;
-          return typeof n === "string" && n.length > 0;
-        });
+        try {
+          const hits = map.queryRenderedFeatures(point, {
+            layers: ["territories-fill"],
+          });
+          // Most polygons in the dataset have NAME: null (seas, anonymous
+          // regions). Prefer the topmost hit that actually has a name so
+          // unnamed overlays don't swallow clicks on real polities.
+          return hits.find((f) => {
+            const n = (f.properties as Record<string, unknown> | null | undefined)?.NAME;
+            return typeof n === "string" && n.length > 0;
+          });
+        } catch {
+          // Style can transiently be mid-transition during scrubbing.
+          return undefined;
+        }
       };
 
-      map.on("mousemove", "territories-fill", (e) => {
+      // Map-level handlers instead of per-layer delegated events: the
+      // queryRenderedFeatures filter already ignores unnamed/sea polygons.
+      map.on("mousemove", (e) => {
         map.getCanvas().style.cursor = namedAt(e.point) ? "pointer" : "";
       });
-      map.on("mouseleave", "territories-fill", () => {
-        map.getCanvas().style.cursor = "";
-      });
 
-      map.on("click", "territories-fill", (e) => {
+      map.on("click", (e) => {
         const feat = namedAt(e.point);
         const props = feat?.properties as Record<string, unknown> | undefined;
         const name = props?.NAME;
@@ -253,6 +257,8 @@ export default function MapView({
     map.setPaintProperty("territories-line", "line-opacity", 0);
     map.setPaintProperty("territories-label", "text-opacity", 0);
     window.setTimeout(() => {
+      // Another keyframe may have been requested during the fade window.
+      if (currentKeyframeRef.current !== keyframe) return;
       source.setData(data as GeoJSON.FeatureCollection);
       map.setPaintProperty("territories-fill", "fill-opacity", 0.6);
       map.setPaintProperty("territories-line", "line-opacity", 0.85);
@@ -276,25 +282,36 @@ export default function MapView({
     markersRef.current = [];
 
     EVENTS.forEach((ev) => {
+      // The marker ROOT element is positioned by MapLibre via an inline
+      // `transform: translate(...)` — never touch transform on it, or the
+      // pin jumps to the pane origin. Visuals + hover live on an inner span.
       const el = document.createElement("button");
       el.setAttribute("aria-label", ev.title);
       el.title = `${ev.title} — ${ev.displayYear}`;
-      const base = `
-        width: 26px; height: 26px; border-radius: 999px;
+
+      const face = document.createElement("span");
+      face.style.cssText = `
+        width: 22px; height: 22px; border-radius: 999px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 12px; cursor: pointer; transform-origin: center;
-        transition: transform 0.15s ease;
-      `;
-      const look =
-        ev.importance === "high"
-          ? `background: #e9dfc8; border: 1.5px solid #6f5f45; color: #3d3426;
-             box-shadow: 0 1px 4px rgba(60, 48, 30, 0.45);`
-          : `background: rgba(233, 223, 200, 0.85); border: 1px solid rgba(111, 95, 69, 0.6);
-             color: rgba(61, 52, 38, 0.75); box-shadow: 0 1px 3px rgba(60, 48, 30, 0.3);`;
-      el.style.cssText = base + look;
-      el.innerText = ev.icon;
-      el.onmouseenter = () => (el.style.transform = "scale(1.18)");
-      el.onmouseleave = () => (el.style.transform = "");
+        font-size: 12px; line-height: 1;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        transform-origin: center;
+      ` + (ev.importance === "high"
+        ? `background: #e9dfc8; border: 1.5px solid #6f5f45; color: #3d3426;
+           box-shadow: 0 1px 4px rgba(60, 48, 30, 0.45);`
+        : `background: rgba(233, 223, 200, 0.85); border: 1px solid rgba(111, 95, 69, 0.6);
+           color: rgba(61, 52, 38, 0.75); box-shadow: 0 1px 3px rgba(60, 48, 30, 0.3);`);
+      face.innerText = ev.icon;
+      face.onmouseenter = () => {
+        face.style.transform = "scale(1.2)";
+        face.style.boxShadow = "0 2px 8px rgba(60, 48, 30, 0.5)";
+      };
+      face.onmouseleave = () => {
+        face.style.transform = "";
+        face.style.boxShadow = "";
+      };
+      el.appendChild(face);
+
       el.onclick = (e) => {
         e.stopPropagation();
         onSelectEventRef.current(ev.id);
