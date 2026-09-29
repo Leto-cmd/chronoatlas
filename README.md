@@ -2,7 +2,7 @@
 
 **History isn't a list of dates — it's a map that won't sit still.**
 
-Drag a timeline from 500 BC to today and watch real empire borders bloom, fracture, and vanish across a dark world map. Rome at its height. The Mongols at a gallop. The Ottomans at their peak. Same globe, different century.
+Drag a timeline from 500 BC to 2010 and watch real empire borders bloom, fracture, and vanish across a hand-tinted, paper-and-ink atlas. Rome at its height. The Mongols at a gallop. The Ottomans at their peak. Same plate, different century.
 
 → [Open the atlas](https://leto-cmd.github.io/chronoatlas/)
 
@@ -12,10 +12,10 @@ Drag a timeline from 500 BC to today and watch real empire borders bloom, fractu
 
 - **Living borders** — 43 keyframe years of real polity geometry, cross-faded as you scrub
 - **Timeline that actually works** — drag, scroll-wheel, or arrow keys; tick marks mark years with data
-- **Click any territory** — curated stories for dozens of civilizations in a side panel
+- **Click any territory** — every named polity gets a description; ~90 major civilizations get full curated dossiers
 - **Search the past** — jump straight to Rome, Genghis, Hastings, Hiroshima, and more
 - **Event pins** — landmark moments drop onto the map with short context
-- **Cinematic entry** — starfield hero, loading sequence, then the atlas
+- **Cinematic entry** — engraved atlas-plate hero, loading sequence, then the atlas
 
 ## Quick start
 

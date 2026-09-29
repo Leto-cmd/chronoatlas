@@ -6,10 +6,11 @@ import Hero from "@/components/Hero";
 import LoadingSequence from "@/components/LoadingSequence";
 import Timeline from "@/components/Timeline";
 import SearchBar from "@/components/SearchBar";
-import Sidebar from "@/components/Sidebar";
-import { getEmpireInfo, EmpireInfo } from "@/lib/empires";
+import Sidebar, { TerritoryPanel } from "@/components/Sidebar";
+import { getEmpireInfo } from "@/lib/empires";
 import { EVENTS, HistoricalEvent } from "@/lib/events";
 import { SearchEntry, snappedYearFor } from "@/lib/search";
+import type { TerritorySelection } from "@/components/MapView";
 
 const MapView = dynamic(() => import("@/components/MapView"), {
   ssr: false,
@@ -20,23 +21,22 @@ type Phase = "landing" | "loading" | "atlas";
 export default function Home() {
   const [phase, setPhase] = useState<Phase>("landing");
   const [year, setYear] = useState(117);
-  const [selectedEmpire, setSelectedEmpire] = useState<EmpireInfo | null>(null);
+  const [selectedEmpire, setSelectedEmpire] = useState<TerritoryPanel | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<HistoricalEvent | null>(null);
   const flyToRef = useRef<((lng: number, lat: number, zoom: number) => void) | null>(null);
 
   const handleExplore = useCallback(() => setPhase("loading"), []);
   const handleLoaded = useCallback(() => setPhase("atlas"), []);
 
-  const handleSelectEmpire = useCallback((name: string) => {
-    const info = getEmpireInfo(name);
+  // Called for any named polygon click. Curated polities get their full
+  // dossier; everything else still gets a real description assembled from
+  // the map metadata (name, larger polity, overlord) instead of a stub.
+  const handleSelectEmpire = useCallback((selection: TerritorySelection) => {
     setSelectedEvent(null);
-    setSelectedEmpire(
-      info ?? {
-        name,
-        summary:
-          "This territory appears in the border data, but a full dossier hasn't been written yet. Try Rome, the Mongol Empire, the Ottomans, or search for a civilization above.",
-      }
-    );
+    setSelectedEmpire({
+      selection,
+      info: getEmpireInfo(selection.name) ?? null,
+    });
   }, []);
 
   const handleSelectEvent = useCallback((id: string) => {
@@ -57,7 +57,11 @@ export default function Home() {
     } else if (entry.empireName) {
       const info = getEmpireInfo(entry.empireName);
       setSelectedEvent(null);
-      setSelectedEmpire(info ?? null);
+      setSelectedEmpire(
+        info
+          ? { selection: { name: entry.empireName }, info }
+          : null
+      );
     }
   }, []);
 
@@ -82,16 +86,17 @@ export default function Home() {
             <div className="relative">
               <SearchBar onSelect={handleSearchSelect} />
               <Sidebar
-                empire={selectedEmpire}
+                territory={selectedEmpire}
                 event={selectedEvent}
                 onClose={() => {
                   setSelectedEmpire(null);
                   setSelectedEvent(null);
                 }}
+                onJumpYear={setYear}
               />
               <div className="pointer-events-auto absolute top-3 right-3 sm:top-6 sm:right-6 z-10">
                 {!selectedEmpire && !selectedEvent && (
-                  <span className="font-display text-lg text-text/90 text-shadow-glow hidden sm:inline">
+                  <span className="font-display text-lg text-ink/80 hidden sm:inline">
                     ChronoAtlas
                   </span>
                 )}

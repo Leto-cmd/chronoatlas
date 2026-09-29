@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { KEYFRAME_YEARS, MIN_YEAR, MAX_YEAR, formatYear } from "@/lib/years";
 
 interface TimelineProps {
@@ -14,53 +14,65 @@ function pct(year: number) {
 
 export default function Timeline({ year, onChange }: TimelineProps) {
   const wheelAccum = useRef(0);
+  const rootRef = useRef<HTMLDivElement>(null);
 
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
+  // Refs keep the non-passive native listener stable across renders.
+  const yearRef = useRef(year);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    yearRef.current = year;
+    onChangeRef.current = onChange;
+  });
+
+  // React attaches onWheel as a passive listener, so e.preventDefault()
+  // would throw "Unable to preventDefault inside passive event listener".
+  // Use a native non-passive listener instead.
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const nonPassiveWheel = (e: WheelEvent) => {
       e.preventDefault();
       wheelAccum.current += e.deltaY;
-      const step = 4;
       if (Math.abs(wheelAccum.current) > 12) {
         const dir = wheelAccum.current > 0 ? 1 : -1;
         wheelAccum.current = 0;
-        const next = Math.min(MAX_YEAR, Math.max(MIN_YEAR, year + dir * step));
-        onChange(next);
+        const next = yearRef.current + dir * 4;
+        const clamped = Math.max(MIN_YEAR, Math.min(MAX_YEAR, next));
+        onChangeRef.current(clamped);
       }
-    },
-    [year, onChange]
-  );
+    };
+    el.addEventListener("wheel", nonPassiveWheel, { passive: false });
+    return () => el.removeEventListener("wheel", nonPassiveWheel);
+  }, []);
 
   return (
     <div
+      ref={rootRef}
       className="pointer-events-auto w-full max-w-4xl px-4 sm:px-8 pb-6 sm:pb-8"
-      onWheel={handleWheel}
     >
-      <div className="rounded-2xl border border-border bg-panel backdrop-blur-xl px-5 sm:px-8 py-4 sm:py-5 shadow-2xl">
+      <div className="rounded-2xl border border-ink/20 bg-panel backdrop-blur-md px-5 sm:px-8 py-4 sm:py-5 shadow-[0_8px_30px_rgba(60,48,30,0.18)]">
         <div className="flex items-baseline justify-between mb-3">
-          <span className="text-[11px] tracking-[0.2em] uppercase text-text-muted font-body">
+          <span className="text-[11px] tracking-[0.2em] uppercase text-text-muted">
             Year
           </span>
-          <span className="font-mono text-2xl sm:text-3xl text-accent-gold text-shadow-glow tabular-nums">
+          <span className="font-display text-2xl sm:text-3xl text-ink tabular-nums">
             {formatYear(Math.round(year))}
           </span>
         </div>
 
         <div className="relative h-6 flex items-center">
-          {/* base track */}
           <div className="timeline-track absolute inset-x-0" />
 
-          {/* filled progress */}
           <div
-            className="absolute h-[4px] rounded-full bg-gradient-to-r from-accent-blue to-accent-gold"
+            className="absolute h-[3px] rounded-full bg-ink/45"
             style={{ width: `${pct(year)}%` }}
           />
 
-          {/* keyframe ticks — years where real border data exists */}
           <div className="absolute inset-x-0 h-6 pointer-events-none">
             {KEYFRAME_YEARS.map((ky) => (
               <div
                 key={ky}
-                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full bg-white/50"
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[2px] h-[10px] rounded-full bg-ink/30"
                 style={{ left: `${pct(ky)}%` }}
                 title={formatYear(ky)}
               />

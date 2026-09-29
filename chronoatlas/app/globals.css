@@ -1,16 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #0a0f1f;
-  --bg-elevated: #0e152b;
-  --panel: rgba(13, 19, 38, 0.86);
-  --border: rgba(255, 255, 255, 0.09);
-  --text: #eef1f8;
-  --text-muted: #8b93a7;
-  --accent-blue: #4c8dff;
-  --accent-blue-soft: rgba(76, 141, 255, 0.35);
-  --accent-gold: #e8b84b;
-  --accent-gold-soft: rgba(232, 184, 75, 0.35);
+  /* Paper & ink palette — a historical atlas page */
+  --bg: #e8decb;
+  --bg-elevated: #efe6cf;
+  --panel: rgba(238, 229, 206, 0.88);
+  --border: rgba(80, 68, 48, 0.22);
+  --text: #3d3426;
+  --text-muted: #8a7c63;
+  --seal: #8f4a38; /* wax-seal red, the single accent */
 
   --font-display: Georgia, "Iowan Old Style", "Palatino Linotype",
     "Times New Roman", serif;
@@ -27,8 +25,9 @@
   --color-border: var(--border);
   --color-text: var(--text);
   --color-text-muted: var(--text-muted);
-  --color-accent-blue: var(--accent-blue);
-  --color-accent-gold: var(--accent-gold);
+  --color-seal: var(--seal);
+  --color-ink: #3d3426;
+  --color-ink-soft: #6f665a;
   --font-display: var(--font-display);
   --font-body: var(--font-body);
   --font-mono: var(--font-mono);
@@ -46,22 +45,37 @@ body {
   overscroll-behavior: none;
 }
 
+/* Subtle paper grain + warm vignette over the whole app */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image:
+    radial-gradient(ellipse at center, transparent 55%, rgba(109, 90, 60, 0.14) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+  background-color: transparent;
+}
+
 ::selection {
-  background: var(--accent-gold-soft);
+  background: rgba(143, 74, 56, 0.25);
   color: var(--text);
 }
 
-/* thin, elegant scrollbars for panels */
+/* thin scrollbars in panels */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  scrollbar-color: rgba(80, 68, 48, 0.35) transparent;
 }
 *::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(80, 68, 48, 0.3);
   border-radius: 999px;
 }
 
@@ -72,27 +86,12 @@ body {
   font-family: var(--font-mono);
 }
 
-.glow-blue {
-  box-shadow: 0 0 24px 2px var(--accent-blue-soft);
-}
-.glow-gold {
-  box-shadow: 0 0 24px 2px var(--accent-gold-soft);
-}
-
-.text-shadow-glow {
-  text-shadow: 0 0 18px rgba(76, 141, 255, 0.55);
-}
-
 /* ---- Timeline slider ---- */
 .timeline-track {
   position: relative;
-  height: 4px;
+  height: 3px;
   border-radius: 999px;
-  background: linear-gradient(
-    to right,
-    rgba(255, 255, 255, 0.08),
-    rgba(255, 255, 255, 0.14)
-  );
+  background: rgba(80, 68, 48, 0.18);
 }
 
 .timeline-range {
@@ -108,12 +107,12 @@ body {
 .timeline-range::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 999px;
-  background: radial-gradient(circle at 35% 30%, #fff, var(--accent-gold));
-  border: 2px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 16px 3px var(--accent-gold-soft), 0 0 0 4px rgba(10, 15, 31, 0.6);
+  background: radial-gradient(circle at 35% 30%, #f4ecd8, #e3d7b8);
+  border: 2px solid rgba(80, 68, 48, 0.75);
+  box-shadow: 0 2px 6px rgba(60, 48, 30, 0.3);
   margin-top: -8px;
   transition: transform 0.15s ease;
 }
@@ -121,30 +120,46 @@ body {
   transform: scale(1.12);
 }
 .timeline-range::-webkit-slider-runnable-track {
-  height: 4px;
+  height: 3px;
   background: transparent;
 }
 .timeline-range::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 999px;
-  background: radial-gradient(circle at 35% 30%, #fff, var(--accent-gold));
-  border: 2px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 16px 3px var(--accent-gold-soft);
+  background: radial-gradient(circle at 35% 30%, #f4ecd8, #e3d7b8);
+  border: 2px solid rgba(80, 68, 48, 0.75);
+  box-shadow: 0 2px 6px rgba(60, 48, 30, 0.3);
 }
 .timeline-range::-moz-range-track {
-  height: 4px;
+  height: 3px;
   background: transparent;
+}
+
+/* ---- MapLibre chrome on parchment ---- */
+.maplibregl-ctrl-attrib {
+  background: rgba(238, 229, 206, 0.8) !important;
+  color: #8a7c63;
+  font-size: 10px;
+}
+.maplibregl-ctrl-attrib a {
+  color: #6f665a;
+}
+.maplibregl-ctrl-group {
+  background: rgba(238, 229, 206, 0.9) !important;
+  border: 1px solid rgba(80, 68, 48, 0.25) !important;
+  box-shadow: 0 2px 8px rgba(60, 48, 30, 0.15) !important;
+}
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid rgba(80, 68, 48, 0.18) !important;
+}
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(60%) sepia(20%) saturate(300%) hue-rotate(5deg);
 }
 
 @keyframes twinkle {
   0%, 100% { opacity: 0.25; }
   50% { opacity: 0.9; }
-}
-
-@keyframes drift {
-  from { transform: translateX(0); }
-  to { transform: translateX(-1200px); }
 }
 
 @media (prefers-reduced-motion: reduce) {

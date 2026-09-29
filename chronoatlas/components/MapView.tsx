@@ -4,50 +4,56 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import maplibregl, { Map as MLMap, LngLatLike } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { yearToFilename, nearestKeyframe } from "@/lib/years";
-import { colorForName } from "@/lib/colors";
+import { colorForName, inkForName, PAPER } from "@/lib/colors";
 import { EVENTS } from "@/lib/events";
 
 export interface MapViewHandle {
   flyTo: (lng: number, lat: number, zoom: number) => void;
 }
 
+export interface TerritorySelection {
+  name: string;
+  partOf?: string;
+  subjectTo?: string;
+}
+
 interface MapViewProps {
   year: number;
-  onSelectEmpire: (name: string) => void;
+  onSelectEmpire: (selection: TerritorySelection) => void;
   onSelectEvent: (id: string) => void;
   registerFlyTo: (fn: (lng: number, lat: number, zoom: number) => void) => void;
 }
 
-// MapLibre only expands {z}/{x}/{y} — Leaflet's {r}/{s} tokens break tile
-// loading and leave a blank canvas that blends into the dark page background.
+// CARTO's light no-labels raster, pushed toward parchment via paint tweaks,
+// sits under the hand-tinted territory polygons like a printed base map.
 const STYLE: maplibregl.StyleSpecification = {
   version: 8,
   glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
   sources: {
-    "carto-dark": {
+    "carto-light": {
       type: "raster",
       tiles: [
-        "https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png",
-        "https://b.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png",
-        "https://c.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png",
-        "https://d.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png",
+        "https://a.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}@2x.png",
+        "https://d.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}@2x.png",
       ],
       tileSize: 256,
       attribution: "© OpenStreetMap contributors © CARTO",
     },
   },
   layers: [
-    { id: "bg", type: "background", paint: { "background-color": "#0a0f1f" } },
+    { id: "bg", type: "background", paint: { "background-color": PAPER.sea } },
     {
-      id: "carto-dark-layer",
+      id: "carto-light-layer",
       type: "raster",
-      source: "carto-dark",
+      source: "carto-light",
       paint: {
-        "raster-opacity": 0.55,
-        "raster-brightness-min": 0,
-        "raster-brightness-max": 0.35,
-        "raster-saturation": -0.35,
-        "raster-contrast": 0.12,
+        "raster-opacity": 0.9,
+        "raster-brightness-min": 0.94,
+        "raster-brightness-max": 1,
+        "raster-saturation": -0.7,
+        "raster-contrast": -0.05,
       },
     },
   ],
@@ -68,6 +74,15 @@ export default function MapView({
   const [ready, setReady] = useState(false);
   const [loadingBorders, setLoadingBorders] = useState(false);
   const currentKeyframeRef = useRef<number | null>(null);
+
+  // Keep the latest callbacks in refs so the once-registered map handlers
+  // never close over a stale identity from an earlier render.
+  const onSelectEmpireRef = useRef(onSelectEmpire);
+  const onSelectEventRef = useRef(onSelectEvent);
+  useEffect(() => {
+    onSelectEmpireRef.current = onSelectEmpire;
+    onSelectEventRef.current = onSelectEvent;
+  }, [onSelectEmpire, onSelectEvent]);
 
   // Init map once
   useEffect(() => {
@@ -94,7 +109,7 @@ export default function MapView({
         type: "fill",
         source: "territories",
         paint: {
-          "fill-color": ["coalesce", ["get", "fillColor"], "#3a4a66"],
+          "fill-color": ["coalesce", ["get", "fillColor"], PAPER.land],
           "fill-opacity": 0,
           "fill-opacity-transition": { duration: 500 },
         },
@@ -105,10 +120,31 @@ export default function MapView({
         type: "line",
         source: "territories",
         paint: {
-          "line-color": ["coalesce", ["get", "fillColor"], "#3a4a66"],
-          "line-width": 1.1,
+          "line-color": ["coalesce", ["get", "inkColor"], "#5d5344"],
+          "line-width": ["interpolate", ["linear"], ["zoom"], 2, 0.7, 5, 1.1, 8, 1.6],
           "line-opacity": 0,
           "line-opacity-transition": { duration: 500 },
+        },
+      });
+
+      map.addLayer({
+        id: "territories-label",
+        type: "symbol",
+        source: "territories",
+        layout: {
+          "text-field": ["coalesce", ["get", "NAME"], ""],
+          "text-font": ["Noto Sans Regular"],
+          "text-transform": "uppercase",
+          "text-letter-spacing": 0.14,
+          "text-size": ["interpolate", ["linear"], ["zoom"], 2.5, 9.5, 5, 12, 8, 15],
+          "text-padding": 6,
+        },
+        paint: {
+          "text-color": "rgba(61, 52, 38, 0.82)",
+          "text-halo-color": "rgba(233, 223, 200, 0.85)",
+          "text-halo-width": 1.1,
+          "text-opacity": 0,
+          "text-opacity-transition": { duration: 500 },
         },
       });
 
@@ -118,9 +154,9 @@ export default function MapView({
         });
         // Most polygons in the dataset have NAME: null (seas, anonymous
         // regions). Prefer the topmost hit that actually has a name so
-        // unnamed overlays don't swallow clicks on real empires.
+        // unnamed overlays don't swallow clicks on real polities.
         return hits.find((f) => {
-          const n = f.properties?.NAME;
+          const n = (f.properties as Record<string, unknown> | null | undefined)?.NAME;
           return typeof n === "string" && n.length > 0;
         });
       };
@@ -134,9 +170,14 @@ export default function MapView({
 
       map.on("click", "territories-fill", (e) => {
         const feat = namedAt(e.point);
-        const name = feat?.properties?.NAME;
-        if (typeof name === "string" && name.length > 0) {
-          onSelectEmpire(name);
+        const props = feat?.properties as Record<string, unknown> | undefined;
+        const name = props?.NAME;
+        if (props && typeof name === "string" && name.length > 0) {
+          onSelectEmpireRef.current({
+            name,
+            partOf: typeof props.PARTOF === "string" ? props.PARTOF : undefined,
+            subjectTo: typeof props.SUBJECTO === "string" ? props.SUBJECTO : undefined,
+          });
         }
       });
 
@@ -180,11 +221,16 @@ export default function MapView({
         const res = await fetch(yearToFilename(keyframe));
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         data = await res.json();
-        // Inject deterministic per-territory color so the fill-color expression
-        // can just read a plain property.
+        // Inject deterministic per-territory color so the paint expressions
+        // can just read plain properties.
         for (const f of data!.features) {
-          const name = f.properties?.NAME ?? null;
-          f.properties = { ...f.properties, fillColor: colorForName(name) };
+          const name = (f.properties as Record<string, unknown> | null)?.NAME;
+          const n = typeof name === "string" && name.length > 0 ? name : null;
+          f.properties = {
+            ...(f.properties as Record<string, unknown>),
+            fillColor: colorForName(n),
+            inkColor: inkForName(n),
+          };
         }
         cacheRef.current.set(keyframe, data!);
       } catch (err) {
@@ -205,19 +251,23 @@ export default function MapView({
     // fade out -> swap data -> fade in
     map.setPaintProperty("territories-fill", "fill-opacity", 0);
     map.setPaintProperty("territories-line", "line-opacity", 0);
+    map.setPaintProperty("territories-label", "text-opacity", 0);
     window.setTimeout(() => {
       source.setData(data as GeoJSON.FeatureCollection);
-      map.setPaintProperty("territories-fill", "fill-opacity", 0.62);
-      map.setPaintProperty("territories-line", "line-opacity", 0.9);
+      map.setPaintProperty("territories-fill", "fill-opacity", 0.6);
+      map.setPaintProperty("territories-line", "line-opacity", 0.85);
+      map.setPaintProperty("territories-label", "text-opacity", 0.85);
     }, 260);
   }, []);
 
   useEffect(() => {
     if (!ready) return;
-    loadYear(nearestKeyframe(year));
+    // Deferred so the async load's state updates happen in a callback,
+    // not synchronously in the effect body.
+    queueMicrotask(() => loadYear(nearestKeyframe(year)));
   }, [ready, year, loadYear]);
 
-  // Event pins — added once map is ready, filtered by relevance to current era
+  // Event pins — added once map is ready, rendered as wax seals on the paper
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
@@ -228,17 +278,26 @@ export default function MapView({
     EVENTS.forEach((ev) => {
       const el = document.createElement("button");
       el.setAttribute("aria-label", ev.title);
-      el.style.cssText = `
-        width: 30px; height: 30px; border-radius: 999px;
+      el.title = `${ev.title} — ${ev.displayYear}`;
+      const base = `
+        width: 26px; height: 26px; border-radius: 999px;
         display: flex; align-items: center; justify-content: center;
-        background: rgba(13,19,38,0.9); border: 1.5px solid rgba(232,184,75,0.7);
-        box-shadow: 0 0 12px rgba(232,184,75,0.45);
-        font-size: 14px; cursor: pointer; transform-origin: center;
+        font-size: 12px; cursor: pointer; transform-origin: center;
+        transition: transform 0.15s ease;
       `;
+      const look =
+        ev.importance === "high"
+          ? `background: #e9dfc8; border: 1.5px solid #6f5f45; color: #3d3426;
+             box-shadow: 0 1px 4px rgba(60, 48, 30, 0.45);`
+          : `background: rgba(233, 223, 200, 0.85); border: 1px solid rgba(111, 95, 69, 0.6);
+             color: rgba(61, 52, 38, 0.75); box-shadow: 0 1px 3px rgba(60, 48, 30, 0.3);`;
+      el.style.cssText = base + look;
       el.innerText = ev.icon;
+      el.onmouseenter = () => (el.style.transform = "scale(1.18)");
+      el.onmouseleave = () => (el.style.transform = "");
       el.onclick = (e) => {
         e.stopPropagation();
-        onSelectEvent(ev.id);
+        onSelectEventRef.current(ev.id);
       };
 
       const marker = new maplibregl.Marker({ element: el })
@@ -251,7 +310,7 @@ export default function MapView({
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
     };
-  }, [ready, onSelectEvent]);
+  }, [ready]);
 
   return (
     <div className="absolute inset-0 w-full h-full">

@@ -8,7 +8,9 @@ export const KEYFRAME_YEARS: number[] = [
 ];
 
 export const MIN_YEAR = -500;
-export const MAX_YEAR = 2025;
+// The newest keyframe with real border data; letting the slider claim years
+// beyond it (e.g. "2025") would show 2010 borders under a false year label.
+export const MAX_YEAR = 2010;
 
 /** Finds the nearest keyframe year with real data for a given slider year. */
 export function nearestKeyframe(year: number): number {

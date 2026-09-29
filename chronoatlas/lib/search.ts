@@ -15,7 +15,7 @@ export interface SearchEntry {
 const RAW: Omit<SearchEntry, "id">[] = [
   { label: "Rome", subtitle: "Capital of the Roman Empire", year: 117, lat: 41.9028, lng: 12.4964, zoom: 4.5, empireName: "Roman Empire" },
   { label: "Roman Empire", subtitle: "Peak under Trajan, 117 AD", year: 117, lat: 41.9028, lng: 12.4964, zoom: 3.2, empireName: "Roman Empire" },
-  { label: "Napoleon", subtitle: "Napoleonic France, 1812", year: 1800, lat: 48.8566, lng: 2.3522, zoom: 3.5, empireName: "France" },
+  { label: "Napoleon", subtitle: "Napoleonic France, 1812", year: 1815, lat: 48.8566, lng: 2.3522, zoom: 3.5, empireName: "France" },
   { label: "Mongol Empire", subtitle: "Under Genghis and his heirs", year: 1279, lat: 47.9212, lng: 106.9057, zoom: 2.8, empireName: "Mongol Empire" },
   { label: "Genghis Khan", subtitle: "Unification of the Mongols, 1206", year: 1206, lat: 47.9212, lng: 106.9057, zoom: 3.5, eventId: "genghis-khan" },
   { label: "Constantinople", subtitle: "Fall of Constantinople, 1453", year: 1400, lat: 41.0082, lng: 28.9784, zoom: 4.5, eventId: "fall-constantinople" },

@@ -4,7 +4,8 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "ChronoAtlas — Watch History Happen",
   description:
-    "Explore history spatially. Drag through time and watch empires rise, expand, and fall on an interactive map of the world.",
+    "Explore history spatially. Drag through time and watch empires rise, expand, and fall on an interactive historical atlas.",
+  icons: { icon: "/favicon.ico" },
 };
 
 export default function RootLayout({
@@ -14,8 +15,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col bg-bg text-text">
-        {children}
+      <body className="min-h-full flex flex-col bg-bg text-text">        {children}
       </body>
     </html>
   );

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const STEPS = [
-  "Drawing map…",
+  "Drawing coastlines…",
   "Loading civilizations…",
   "Preparing timeline…",
 ];
@@ -29,19 +29,20 @@ export default function LoadingSequence({ onDone }: LoadingSequenceProps) {
 
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-bg z-30">
-      {/* zooming globe -> flies toward viewer to suggest space -> earth */}
+      {/* the atlas 'plate' zooms toward the viewer, ink dissolving into paper */}
       <motion.div
-        initial={{ scale: 0.3, opacity: 0.3 }}
+        initial={{ scale: 0.3, opacity: 0.4 }}
         animate={{ scale: 22, opacity: 0 }}
         transition={{ duration: 1.75, ease: [0.6, 0, 0.9, 0.2] }}
         className="absolute w-40 h-40 rounded-full"
         style={{
           background:
-            "radial-gradient(circle at 35% 30%, #2a4d8f 0%, #0e1f3f 55%, transparent 75%)",
+            "radial-gradient(circle at 38% 32%, #efe6cf 0%, #d8cba9 55%, transparent 75%)",
+          boxShadow: "0 0 0 2px rgba(80,68,48,0.35)",
         }}
       />
       <div className="relative flex flex-col items-center gap-4">
-        <div className="w-10 h-10 rounded-full border-2 border-accent-blue/30 border-t-accent-gold animate-spin" />
+        <div className="w-10 h-10 rounded-full border-2 border-ink/15 border-t-ink/70 animate-spin" />
         <AnimatePresence mode="wait">
           <motion.span
             key={step}
